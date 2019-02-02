@@ -7,13 +7,14 @@ import math
 import numpy as np
 import pandas as pd
 import os
-
 _PLAYER_HOSTILE = 4
 
 ACTION_DO_NOTHING = 'donothing'
+
 ACTION_BUILD_SPAWNINGPOOL = 'buildspawningpool'
 ACTION_BUILD_ROACH_WARREN = 'buildroachwarren'
 ACTION_BUILD_EXTRACTOR = 'buildextractor'
+ACTION_BUILD_HATCHERY = 'buildhatchery'
 ACTION_TRAIN_ZERGLING = 'trainzergling'
 ACTION_TRAIN_ROACH = 'trainroach'
 ACTION_TRAIN_OVERLORD = 'trainoverlord'
@@ -42,6 +43,12 @@ for mm_x in range(0, 64):
         if (mm_x + 2) % 8 == 0 and (mm_y + 2) % 8 == 0:
             smart_actions.append(ACTION_ATTACK + '_' + str(mm_x - 4) + '_' + str(mm_y - 4))
 
+for mm_x in range(0, 64):
+    for mm_y in range(0, 64):
+        if (mm_x + 6) % 4 == 0 and (mm_y + 6) % 4 == 0:
+            smart_actions.append(ACTION_BUILD_HATCHERY + '_' + str(mm_x - 2) + '_' + str(mm_y - 2))
+
+
 class ZergAgentAttack(base_agent.BaseAgent):
     def __init__(self):
         super(ZergAgentAttack, self).__init__()
@@ -50,7 +57,15 @@ class ZergAgentAttack(base_agent.BaseAgent):
         self.previous_state = None
         self.htc_x = None
         self.htc_y = None
+        self.player_x = None
+        self.player_y = None
         self.move_number = 0
+        self.build_here = []
+        self.harvest_here = []
+        self.select=[]
+        self.should_select=False
+        self.should_harvest = False
+        self.geyser_taken = False
         self.base_top_left = None
         if os.path.isfile(DATA_FILE + '.gz'):
             self.qlearn.q_table = pd.read_pickle(DATA_FILE + '.gz', compression='gzip')
@@ -115,11 +130,12 @@ class ZergAgentAttack(base_agent.BaseAgent):
             self.previous_state = None
             self.move_number = 0
             return actions.FUNCTIONS.no_op()
-        # unit_type = obs.observation['screen'][_UNIT_TYPE]
 
         if obs.first():
             player_y, player_x = (obs.observation.feature_minimap.player_relative ==
                                   features.PlayerRelative.SELF).nonzero()
+            self.player_x = player_x.mean()
+            self.player_y = player_y.mean()
             xmean = player_x.mean()
             ymean = player_y.mean()
             self.base_top_left = 1 if player_y.any() and ymean <= 31 else 0
@@ -147,12 +163,11 @@ class ZergAgentAttack(base_agent.BaseAgent):
         army_supply = obs.observation.player.food_army
         if self.move_number == 0:
             self.move_number += 1
-            current_state = np.zeros(132)
+            current_state = np.zeros(388)
             current_state[0] = overlords_count
             current_state[1] = spawning_pools_count
             current_state[2] = supply_limit
             current_state[3] = army_limit
-
 
             hot_squares = np.zeros(64)
             enemy_y, enemy_x = (obs.observation.feature_minimap.player_relative == _PLAYER_HOSTILE).nonzero()
@@ -169,7 +184,8 @@ class ZergAgentAttack(base_agent.BaseAgent):
                 current_state[i + 8] = hot_squares[i]
 
             green_squares = np.zeros(64)
-            friendly_y, friendly_x = (obs.observation.feature_minimap.player_relative == _PLAYER_SELF).nonzero()
+            friendly_y, friendly_x = (obs.observation.feature_minimap.player_relative == features.PlayerRelative.SELF)\
+                .nonzero()
             for i in range(0, len(friendly_y)):
                 y = int(math.ceil((friendly_y[i] + 1) / 8))
                 x = int(math.ceil((friendly_x[i] + 1) / 8))
@@ -201,18 +217,10 @@ class ZergAgentAttack(base_agent.BaseAgent):
                 excluded_actions.append(8)  # we have a Roach warren, dont build another
             if roach_warren_count == 0:  # cant make Roaches so dont try
                 excluded_actions.append(6)
-            if army_supply == 0:  # no supply so no training
-                excluded_actions.append(10)
-                excluded_actions.append(11)
-                excluded_actions.append(12)
-                excluded_actions.append(13)
-                excluded_actions.append(14)
-                excluded_actions.append(15)
-                excluded_actions.append(16)
-                excluded_actions.append(17)
-                # for action in smart_actions:
-                #     if ACTION_ATTACK in action:
-                #         excluded_actions.append(smart_actions.index(action))
+            if army_supply == 0:  # no supply so no attacking
+                for action in smart_actions:
+                    if ACTION_ATTACK in action:
+                        excluded_actions.append(smart_actions.index(action))
 
             rl_action = self.qlearn.choose_action(str(current_state), excluded_actions)
 
@@ -224,27 +232,23 @@ class ZergAgentAttack(base_agent.BaseAgent):
                 return actions.FUNCTIONS.no_op()
 
             elif smart_action == ACTION_BUILD_SPAWNINGPOOL or smart_action == ACTION_BUILD_EXTRACTOR or \
-                    smart_action == ACTION_BUILD_ROACH_WARREN:
-                # builds spawn pool stage 1 : get drone
-                drones = self.get_units_by_type(obs, units.Zerg.Drone)
-                if len(drones) > 0:  # pick a drone
-                    drone = random.choice(drones)
-                    return actions.FUNCTIONS.select_point("select_all_type", (drone.x, drone.y))
-
-            elif smart_action == ACTION_DRONE_HARVEST or smart_action == ACTION_DRONE_HGAS:
-                drones = self.get_units_by_type(obs, units.Zerg.Drone)
-                if len(drones) > 0:  # pick a drone
-                    drone = random.choice(drones)
-                    return actions.FUNCTIONS.select_point("select", (drone.x, drone.y))
+                    smart_action == ACTION_BUILD_ROACH_WARREN or smart_action == ACTION_BUILD_HATCHERY\
+                    or smart_action == ACTION_DRONE_HARVEST or smart_action == ACTION_DRONE_HGAS:
+                    # builds spawn pool stage 1 : get drone
+                    self.select = [self.player_x, self.player_y]
+                    # percent_x = ((drone.x)/84)
+                    # percent_x = ((drone.y) / 64)
+                    # minmap_reference =
+                    self.should_select = True
+                    return actions.FUNCTIONS.move_camera(self.select)
 
             elif smart_action == ACTION_TRAIN_OVERLORD or smart_action == ACTION_TRAIN_ZERGLING or \
                     smart_action == ACTION_TRAIN_DRONE or smart_action == ACTION_TRAIN_ROACH:
                 # train troop/drone stage 1 : get larvae
                 if not self.unit_type_is_selected(obs, units.Zerg.Larva):
-                    larvae = self.get_units_by_type(obs, units.Zerg.Larva)
-                    if len(larvae) > 0:
-                        larva = random.choice(larvae)
-                        return actions.FUNCTIONS.select_point("select_all_type", (larva.x, larva.y))
+                        self.should_select = True
+                        self.select = [self.player_x, self.player_y]
+                        return actions.FUNCTIONS.move_camera(self.select)
 
             elif smart_action == ACTION_ATTACK:
                 if self.can_do(obs, actions.FUNCTIONS.select_army.id):
@@ -255,11 +259,50 @@ class ZergAgentAttack(base_agent.BaseAgent):
 
             smart_action, x, y = self.splitAction(self.previous_action)
 
-            if smart_action == ACTION_BUILD_SPAWNINGPOOL or smart_action == ACTION_BUILD_ROACH_WARREN:
+            if smart_action == ACTION_BUILD_SPAWNINGPOOL or smart_action == ACTION_BUILD_EXTRACTOR or \
+                    smart_action == ACTION_BUILD_ROACH_WARREN or smart_action == ACTION_BUILD_HATCHERY \
+                    or smart_action == ACTION_DRONE_HARVEST or smart_action == ACTION_DRONE_HGAS:
+                if self.should_select:
+                    drones = self.get_units_by_type(obs, units.Zerg.Drone)
+                    if len(drones)>0:
+                        drone = random.choice(drones)
+                        drone_x = drone.x
+                        drone_y = drone.y
+                        self.select = [drone_x, drone_y]
+                        return actions.FUNCTIONS.select_point("select", self.select)
+
+            elif smart_action == ACTION_TRAIN_OVERLORD or smart_action == ACTION_TRAIN_ZERGLING or \
+                    smart_action == ACTION_TRAIN_DRONE or smart_action == ACTION_TRAIN_ROACH:
+                # train troop/drone stage 1 : get larvae
+                if self.should_select:
+                    larvae = self.get_units_by_type(obs, units.Zerg.Larva)
+                    if len(larvae) > 0:
+                        larva = random.choice(larvae)
+                        self.select = [larva.x, larva.y]
+                    return actions.FUNCTIONS.select_point("select_all_type", self.select)
+
+            elif smart_action == ACTION_ATTACK:
+                do_it = True
+                if self.unit_type_is_selected(obs, units.Zerg.Drone):
+                    do_it = False
+                if do_it and self.can_do(obs, actions.FUNCTIONS.Attack_minimap.id):
+                    target_location = self.transformLocation(int(x), int(y))
+                    return actions.FUNCTIONS.Attack_minimap('now', target_location)
+
+        elif self.move_number == 2:
+            self.move_number += 1
+
+            smart_action, x, y = self.splitAction(self.previous_action)
+
+            if smart_action == ACTION_BUILD_HATCHERY:
+                if self.can_do(obs, actions.FUNCTIONS.Build_Hatchery_screen.id):
+                    self.build_here = [int(x), int(y)]
+                    return actions.FUNCTIONS.move_camera(self.build_here)
+
+            elif smart_action == ACTION_BUILD_SPAWNINGPOOL or smart_action == ACTION_BUILD_ROACH_WARREN:
                 if self.get_units_by_type(obs, units.Zerg.Hatchery):
-                    if spawning_pools_count < 1 and self.can_do(obs, actions.FUNCTIONS.Build_SpawningPool_screen.id):
-                        target = self.transformDistance(self.htc_x, 15, self.htc_y, -9)
-                        return actions.FUNCTIONS.Build_SpawningPool_screen('now', target)
+                        self.build_here = self.transformDistance(self.htc_x, 15, self.htc_y, -9)
+                        return actions.FUNCTIONS.move_camera(self.build_here)
 
             elif smart_action == ACTION_BUILD_EXTRACTOR:
                 if self.can_do(obs, actions.FUNCTIONS.Build_Extractor_screen.id):
@@ -268,7 +311,7 @@ class ZergAgentAttack(base_agent.BaseAgent):
                         for geyser in geysers:  # for each geyser
                             gey_x = geyser.x
                             gey_y = geyser.y
-                            taken = False
+                            self.geyser_taken = False
                             for hatch in hatcheries:  # for each hatch
                                 htc_x = hatch.x
                                 htc_y = hatch.y
@@ -280,11 +323,12 @@ class ZergAgentAttack(base_agent.BaseAgent):
                                             extc_x = extractor.x
                                             extc_y = extractor.y
                                             if gey_x == extc_x and gey_y == extc_y:
-                                                taken = True
+                                                self.geyser_taken = True
                                             # does location not have an extractor already?
                                             # no? YAY build it!.
-                                    if not taken:
-                                        return actions.FUNCTIONS.Build_Extractor_screen("now", (gey_x, gey_y))
+                                    if not self.geyser_taken:
+                                        self.build_here = [gey_x, gey_y]
+                                        return actions.FUNCTIONS.move_camera("now", self.build_here)
 
             elif smart_action == ACTION_DRONE_HARVEST:
                 if self.can_do(obs, actions.FUNCTIONS.Harvest_Gather_screen.id):
@@ -292,9 +336,11 @@ class ZergAgentAttack(base_agent.BaseAgent):
                     for mineral in minerals:
                         hatcheries = self.get_units_by_type(obs, units.Zerg.Hatchery)
                         for hatch in hatcheries:  # for each hatch
+                            self.should_harvest = False
                             if self.calculateDistance(mineral.x, mineral.y, hatch.x, hatch.y) <= 35:
-                                target = [mineral.x, mineral.y]
-                                return actions.FUNCTIONS.Harvest_Gather_screen("now", target)
+                                self.should_harvest = True
+                                self.harvest_here = [mineral.x, mineral.y]
+                                return actions.FUNCTIONS.move_camera("now",  self.harvest_here)
 
             elif smart_action == ACTION_DRONE_HGAS:
                 if self.can_do(obs, actions.FUNCTIONS.Harvest_Gather_screen.id):
@@ -302,9 +348,11 @@ class ZergAgentAttack(base_agent.BaseAgent):
                     for extractor in extractors:
                         hatcheries = self.get_units_by_type(obs, units.Zerg.Hatchery)
                         for hatch in hatcheries:  # for each hatch
+                            self.should_harvest = False
                             if self.calculateDistance(extractor.x, extractor.y, hatch.x, hatch.y) <= 35:
-                                target = [extractor.x, extractor.y]
-                                return actions.FUNCTIONS.Harvest_Gather_screen("now", target)
+                                self.should_harvest = True
+                                self.harvest_here = [extractor.x, extractor.y]
+                                return actions.FUNCTIONS.move_camera("now", self.harvest_here)
 
             elif smart_action == ACTION_TRAIN_OVERLORD:
                 if self.can_do(obs, actions.FUNCTIONS.Train_Overlord_quick.id):
@@ -321,27 +369,36 @@ class ZergAgentAttack(base_agent.BaseAgent):
             elif smart_action == ACTION_TRAIN_DRONE:
                 if self.can_do(obs, actions.FUNCTIONS.Train_Drone_quick.id):
                     return actions.FUNCTIONS.Train_Drone_quick('now')
-            elif smart_action == ACTION_ATTACK:
-                do_it = True
-                if self.unit_type_is_selected(obs, units.Zerg.Drone):
-                    do_it = False
-                if do_it and self.can_do(obs, actions.FUNCTIONS.Attack_minimap.id):
-                    target_location = self.transformLocation(int(x), int(y))
-                    return actions.FUNCTIONS.Attack_minimap('now', target_location)
 
-        elif self.move_number == 2:
+        elif self.move_number == 3:
             self.move_number = 0  # empty action state atm
 
             smart_action, x, y = self.splitAction(self.previous_action)
 
             if smart_action == ACTION_BUILD_ROACH_WARREN:
                 if roach_warren_count < 1 and self.can_do(obs, actions.FUNCTIONS.Build_RoachWarren_screen.id):
-                    if self.htc_y.any():
-                        target = self.transformDistance(round(self.htc_x.mean()), 25, round(self.htc_y.mean()), 15)
-                        return actions.FUNCTIONS.Build_RoachWarren_screen("now", target)
+                        return actions.FUNCTIONS.Build_RoachWarren_screen("now", (42,42))
+
+            elif smart_action == ACTION_BUILD_HATCHERY:
+                if self.can_do(obs, actions.FUNCTIONS.Build_Hatchery_screen.id):
+                    return actions.FUNCTIONS.Build_Hatchery_screen('now', (42,42))
+
+            elif smart_action == ACTION_BUILD_SPAWNINGPOOL or smart_action == ACTION_BUILD_ROACH_WARREN:
+                if spawning_pools_count < 1 and self.can_do(obs, actions.FUNCTIONS.Build_SpawningPool_screen.id):
+                        return actions.FUNCTIONS.Build_SpawningPool_screen('now', (42,42))
+
+            elif smart_action == ACTION_BUILD_EXTRACTOR:
+                if self.can_do(obs, actions.FUNCTIONS.Build_Extractor_screen.id):
+                    if self.geyser_taken:
+                        return actions.FUNCTIONS.Build_Extractor_screen("now", (42,42))
+
+            elif smart_action == ACTION_DRONE_HARVEST or smart_action == ACTION_DRONE_HGAS:
+                if self.can_do(obs, actions.FUNCTIONS.Harvest_Gather_screen.id):
+                    if self.should_harvest:
+                        return actions.FUNCTIONS.Harvest_Gather_screen("now", (42,42))
 
         return actions.FUNCTIONS.no_op()
-    
+
 
 class QLearningTable:
     def __init__(self, actions, learning_rate=0.01, reward_decay=0.9, e_greedy=0.9):
@@ -404,8 +461,7 @@ def main(unused_argv):
         while True:
             with sc2_env.SC2Env(map_name="AcidPlant",
                                 players=[sc2_env.Agent(sc2_env.Race.zerg),
-                                         sc2_env.Bot(sc2_env.Race.random,
-                                                     sc2_env.Difficulty.easy)],
+                                         sc2_env.Agent(sc2_env.Race.zerg)],
                                 agent_interface_format=features.AgentInterfaceFormat(
                                     feature_dimensions=features.Dimensions(screen=84, minimap=64),
                                     use_feature_units=True),
