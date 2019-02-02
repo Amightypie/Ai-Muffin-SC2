@@ -210,8 +210,12 @@ class ZergAgentAttack(base_agent.BaseAgent):
 
             if free_supply > 8:  # got enough supply dont bother with overlord
                 excluded_actions.append(3)
+            if worker_supply ==0 : # no point building with no drones
+                for action in smart_actions:
+                    if 'build' in action or 'drone' in action:
+                        excluded_actions.append(smart_actions.index(action))
 
-            if extractor_count >= (htc_count * 2):
+            if extractor_count >= (htc_count * 2): # if all extractors are made no point building new ones
                 excluded_actions.append(9)
             if roach_warren_count == 1:
                 excluded_actions.append(8)  # we have a Roach warren, dont build another
@@ -234,17 +238,14 @@ class ZergAgentAttack(base_agent.BaseAgent):
             elif smart_action == ACTION_BUILD_SPAWNINGPOOL or smart_action == ACTION_BUILD_EXTRACTOR or \
                     smart_action == ACTION_BUILD_ROACH_WARREN or smart_action == ACTION_BUILD_HATCHERY\
                     or smart_action == ACTION_DRONE_HARVEST or smart_action == ACTION_DRONE_HGAS:
-                    # builds spawn pool stage 1 : get drone
+                    # builds spawn pool stage 1 : go to base
                     self.select = [self.player_x, self.player_y]
-                    # percent_x = ((drone.x)/84)
-                    # percent_x = ((drone.y) / 64)
-                    # minmap_reference =
                     self.should_select = True
                     return actions.FUNCTIONS.move_camera(self.select)
 
             elif smart_action == ACTION_TRAIN_OVERLORD or smart_action == ACTION_TRAIN_ZERGLING or \
                     smart_action == ACTION_TRAIN_DRONE or smart_action == ACTION_TRAIN_ROACH:
-                # train troop/drone stage 1 : get larvae
+                # train troop/drone stage 1 : go to base
                 if not self.unit_type_is_selected(obs, units.Zerg.Larva):
                         self.should_select = True
                         self.select = [self.player_x, self.player_y]
@@ -328,7 +329,7 @@ class ZergAgentAttack(base_agent.BaseAgent):
                                             # no? YAY build it!.
                                     if not self.geyser_taken:
                                         self.build_here = [gey_x, gey_y]
-                                        return actions.FUNCTIONS.move_camera("now", self.build_here)
+                                        return actions.FUNCTIONS.move_camera(self.build_here)
 
             elif smart_action == ACTION_DRONE_HARVEST:
                 if self.can_do(obs, actions.FUNCTIONS.Harvest_Gather_screen.id):
@@ -340,7 +341,7 @@ class ZergAgentAttack(base_agent.BaseAgent):
                             if self.calculateDistance(mineral.x, mineral.y, hatch.x, hatch.y) <= 35:
                                 self.should_harvest = True
                                 self.harvest_here = [mineral.x, mineral.y]
-                                return actions.FUNCTIONS.move_camera("now",  self.harvest_here)
+                                return actions.FUNCTIONS.move_camera(self.harvest_here)
 
             elif smart_action == ACTION_DRONE_HGAS:
                 if self.can_do(obs, actions.FUNCTIONS.Harvest_Gather_screen.id):
@@ -352,7 +353,7 @@ class ZergAgentAttack(base_agent.BaseAgent):
                             if self.calculateDistance(extractor.x, extractor.y, hatch.x, hatch.y) <= 35:
                                 self.should_harvest = True
                                 self.harvest_here = [extractor.x, extractor.y]
-                                return actions.FUNCTIONS.move_camera("now", self.harvest_here)
+                                return actions.FUNCTIONS.move_camera(self.harvest_here)
 
             elif smart_action == ACTION_TRAIN_OVERLORD:
                 if self.can_do(obs, actions.FUNCTIONS.Train_Overlord_quick.id):
@@ -377,25 +378,26 @@ class ZergAgentAttack(base_agent.BaseAgent):
 
             if smart_action == ACTION_BUILD_ROACH_WARREN:
                 if roach_warren_count < 1 and self.can_do(obs, actions.FUNCTIONS.Build_RoachWarren_screen.id):
-                        return actions.FUNCTIONS.Build_RoachWarren_screen("now", (42,42))
-
+                        return actions.FUNCTIONS.Build_RoachWarren_screen("now", (42, 42))
+                        # build right in the middle of screen
             elif smart_action == ACTION_BUILD_HATCHERY:
                 if self.can_do(obs, actions.FUNCTIONS.Build_Hatchery_screen.id):
                     return actions.FUNCTIONS.Build_Hatchery_screen('now', (42,42))
-
+                    # build right in the middle of screen
             elif smart_action == ACTION_BUILD_SPAWNINGPOOL or smart_action == ACTION_BUILD_ROACH_WARREN:
                 if spawning_pools_count < 1 and self.can_do(obs, actions.FUNCTIONS.Build_SpawningPool_screen.id):
-                        return actions.FUNCTIONS.Build_SpawningPool_screen('now', (42,42))
-
+                        return actions.FUNCTIONS.Build_SpawningPool_screen('now', (42, 42))
+                        # build right in the middle of screen
             elif smart_action == ACTION_BUILD_EXTRACTOR:
                 if self.can_do(obs, actions.FUNCTIONS.Build_Extractor_screen.id):
                     if self.geyser_taken:
-                        return actions.FUNCTIONS.Build_Extractor_screen("now", (42,42))
-
+                        return actions.FUNCTIONS.Build_Extractor_screen("now", (42, 42))
+                        # build right in the middle of screen
             elif smart_action == ACTION_DRONE_HARVEST or smart_action == ACTION_DRONE_HGAS:
                 if self.can_do(obs, actions.FUNCTIONS.Harvest_Gather_screen.id):
                     if self.should_harvest:
-                        return actions.FUNCTIONS.Harvest_Gather_screen("now", (42,42))
+                        return actions.FUNCTIONS.Harvest_Gather_screen("now", (42, 42))
+                        # build right in the middle of screen
 
         return actions.FUNCTIONS.no_op()
 
@@ -461,7 +463,7 @@ def main(unused_argv):
         while True:
             with sc2_env.SC2Env(map_name="AcidPlant",
                                 players=[sc2_env.Agent(sc2_env.Race.zerg),
-                                         sc2_env.Agent(sc2_env.Race.zerg)],
+                                         sc2_env.Bot(sc2_env.Race.random, sc2_env.Difficulty.easy)],
                                 agent_interface_format=features.AgentInterfaceFormat(
                                     feature_dimensions=features.Dimensions(screen=84, minimap=64),
                                     use_feature_units=True),
