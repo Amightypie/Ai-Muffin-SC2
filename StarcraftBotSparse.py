@@ -239,17 +239,17 @@ class ZergAgentAttack(base_agent.BaseAgent):
                     smart_action == ACTION_BUILD_ROACH_WARREN or smart_action == ACTION_BUILD_HATCHERY\
                     or smart_action == ACTION_DRONE_HARVEST or smart_action == ACTION_DRONE_HGAS:
                     # builds spawn pool stage 1 : go to base
-                    self.select = [self.player_x, self.player_y]
+                    # self.select = [self.player_x, self.player_y]
                     self.should_select = True
-                    return actions.FUNCTIONS.move_camera(self.select)
+                    return actions.FUNCTIONS.move_camera((self.player_x, self.player_y))
 
             elif smart_action == ACTION_TRAIN_OVERLORD or smart_action == ACTION_TRAIN_ZERGLING or \
                     smart_action == ACTION_TRAIN_DRONE or smart_action == ACTION_TRAIN_ROACH:
                 # train troop/drone stage 1 : go to base
                 if not self.unit_type_is_selected(obs, units.Zerg.Larva):
                         self.should_select = True
-                        self.select = [self.player_x, self.player_y]
-                        return actions.FUNCTIONS.move_camera(self.select)
+                        # self.select = [self.player_x, self.player_y]
+                        return actions.FUNCTIONS.move_camera((self.player_x, self.player_y))
 
             elif smart_action == ACTION_ATTACK:
                 if self.can_do(obs, actions.FUNCTIONS.select_army.id):
@@ -265,7 +265,7 @@ class ZergAgentAttack(base_agent.BaseAgent):
                     or smart_action == ACTION_DRONE_HARVEST or smart_action == ACTION_DRONE_HGAS:
                 if self.should_select:
                     drones = self.get_units_by_type(obs, units.Zerg.Drone)
-                    if len(drones)>0:
+                    if len(drones )> 0:
                         drone = random.choice(drones)
                         drone_x = drone.x
                         drone_y = drone.y
