@@ -210,7 +210,7 @@ class ZergAgentAttack(base_agent.BaseAgent):
 
             if free_supply > 8:  # got enough supply dont bother with overlord
                 excluded_actions.append(3)
-            if worker_supply ==0 or len(self.get_units_by_type(obs, units.Zerg.Drone)) == 0: # no point building with no drones
+            if worker_supply ==0: # no point building with no drones
                 for action in smart_actions:
                     if 'build' in action or 'drone' in action:
                         excluded_actions.append(smart_actions.index(action))
