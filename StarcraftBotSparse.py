@@ -8,27 +8,9 @@ import numpy as np
 import pandas as pd
 import os
 
-# _NO_OP = actions.FUNCTIONS.no_op.id
-# _SELECT_POINT = actions.FUNCTIONS.select_point.id
-# _BUILD_OVERLORD = actions.FUNCTIONS.Train_Overlord_quick.id
-# _BUILD_SPAWNINGPOOL = actions.FUNCTIONS.Build_SpawningPool_screen.id
-# _TRAIN_ZERGLING = actions.FUNCTIONS.Train_Zergling_quick.id
-# _SELECT_ARMY = actions.FUNCTIONS.select_army.id
-# _ATTACK_MINIMAP = actions.FUNCTIONS.Attack_minimap.id
-# _HARVEST_GATHER = actions.FUNCTIONS.Harvest_Gather_screen.id
-# _PLAYER_RELATIVE = features.SCREEN_FEATURES.player_relative.index
-# _UNIT_TYPE = features.SCREEN_FEATURES.unit_type.index
-# _PLAYER_ID = features.SCREEN_FEATURES.player_id.index
-
 _PLAYER_HOSTILE = 4
-_PLAYER_SELF = 1
-
-_NOT_QUEUED = [0]
-_QUEUED = [1]
-_SELECT_ALL = [2]
 
 ACTION_DO_NOTHING = 'donothing'
-
 ACTION_BUILD_SPAWNINGPOOL = 'buildspawningpool'
 ACTION_BUILD_ROACH_WARREN = 'buildroachwarren'
 ACTION_BUILD_EXTRACTOR = 'buildextractor'
@@ -59,11 +41,6 @@ for mm_x in range(0, 64):
     for mm_y in range(0, 64):
         if (mm_x + 2) % 8 == 0 and (mm_y + 2) % 8 == 0:
             smart_actions.append(ACTION_ATTACK + '_' + str(mm_x - 4) + '_' + str(mm_y - 4))
-# for mm_x in range(0, 64):
-#     for mm_y in range(0, 64):
-#         if (mm_x + 2) % 8 == 0 and (mm_y + 2) % 8 == 0:
-#             smart_actions.append(ACTION_BUILD_HATCHERY + '_' + str(mm_x - 4) + '_' + str(mm_y - 4))
-
 
 class ZergAgentAttack(base_agent.BaseAgent):
     def __init__(self):
@@ -364,7 +341,7 @@ class ZergAgentAttack(base_agent.BaseAgent):
                         return actions.FUNCTIONS.Build_RoachWarren_screen("now", target)
 
         return actions.FUNCTIONS.no_op()
-
+    
 
 class QLearningTable:
     def __init__(self, actions, learning_rate=0.01, reward_decay=0.9, e_greedy=0.9):
