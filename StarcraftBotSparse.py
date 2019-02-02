@@ -264,18 +264,13 @@ class ZergAgentAttack(base_agent.BaseAgent):
                     smart_action == ACTION_BUILD_ROACH_WARREN or smart_action == ACTION_BUILD_HATCHERY \
                     or smart_action == ACTION_DRONE_HARVEST or smart_action == ACTION_DRONE_HGAS:
                 if self.should_select:
-                    idleness = actions.FUNCTIONS.select_idle_worker()
-                    if len(idleness)>0:
-                        print('yup')
-                        drone = idleness[0]
-                    else:
-                        drones = self.get_units_by_type(obs, units.Zerg.Drone)
-                        if len(drones)>0:
-                            drone = random.choice(drones)
-                    drone_x = drone.x
-                    drone_y = drone.y
-                    self.select = [drone_x, drone_y]
-                    return actions.FUNCTIONS.select_point("select", self.select)
+                    drones = self.get_units_by_type(obs, units.Zerg.Drone)
+                    if len(drones)>0:
+                        drone = random.choice(drones)
+                        drone_x = drone.x
+                        drone_y = drone.y
+                        self.select = [drone_x, drone_y]
+                        return actions.FUNCTIONS.select_point("select", self.select)
 
             elif smart_action == ACTION_TRAIN_OVERLORD or smart_action == ACTION_TRAIN_ZERGLING or \
                     smart_action == ACTION_TRAIN_DRONE or smart_action == ACTION_TRAIN_ROACH:
