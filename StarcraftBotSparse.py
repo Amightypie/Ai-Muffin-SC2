@@ -287,13 +287,14 @@ class ZergAgentAttack(base_agent.BaseAgent):
                     drones = self.get_units_by_type(obs, units.Zerg.Drone)
                     if len(drones)> 0:
                         drone = random.choice(drones)
-                        self.select = [drone.x, drone.y]
-                        if drone.x > 84:
-                            drone.x = drone.x - (drone.x - 83)
-                        if drone.y > 84:
-                            drone.y = drone.y - (drone.y - 83)
+                        dpoint_x = drone.x
+                        dpoint_y = drone.y
+                        if drone.x >= 84:
+                            dpoint_x = drone.x - (drone.x - 82)
+                        if drone.y >= 84:
+                            dpoint_y = drone.y - (drone.y - 82)
 
-                        return actions.FUNCTIONS.select_point("select", (drone.x, drone.y))
+                        return actions.FUNCTIONS.select_point("select", (dpoint_x, dpoint_y))
 
             elif smart_action == ACTION_TRAIN_OVERLORD or smart_action == ACTION_TRAIN_ZERGLING or \
                     smart_action == ACTION_TRAIN_DRONE or smart_action == ACTION_TRAIN_ROACH:
@@ -302,13 +303,14 @@ class ZergAgentAttack(base_agent.BaseAgent):
                     larvae = self.get_units_by_type(obs, units.Zerg.Larva)
                     if len(larvae) > 0:
                         larva = random.choice(larvae)
-                        if larva.x > 84:
-                            larva.x = larva.x - (larva.x - 83)
-                        if larva.y > 84:
-                            larva.y = larva.y - (larva.y - 83)
-                        self.select = [larva.x, larva.y]
+                        lpoint_x = larva.x
+                        lpoint_y = larva.y
+                        if larva.x >= 84:
+                            lpoint_x = larva.x - (larva.x - 82)
+                        if larva.y >= 84:
+                            lpoint_y = larva.y - (larva.y - 82)
 
-                        return actions.FUNCTIONS.select_point("select_all_type", (larva.x, larva.y))
+                        return actions.FUNCTIONS.select_point("select_all_type", (lpoint_x, lpoint_y))
 
             elif smart_action == ACTION_ATTACK:
                 do_it = True
