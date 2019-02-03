@@ -289,9 +289,10 @@ class ZergAgentAttack(base_agent.BaseAgent):
                         drone = random.choice(drones)
                         self.select = [drone.x, drone.y]
                         if drone.x > 84:
-                            drone.x = drone.x - (drone.x - 85)
+                            drone.x = drone.x - (drone.x - 83)
                         if drone.y > 84:
-                            drone.y = drone.x - (drone.y - 85)
+                            drone.y = drone.x - (drone.y - 83)
+
                         return actions.FUNCTIONS.select_point("select", (drone.x, drone.y))
 
             elif smart_action == ACTION_TRAIN_OVERLORD or smart_action == ACTION_TRAIN_ZERGLING or \
@@ -300,12 +301,13 @@ class ZergAgentAttack(base_agent.BaseAgent):
                 if self.should_select:
                     larvae = self.get_units_by_type(obs, units.Zerg.Larva)
                     if len(larvae) > 0:
-                        larva = random.choice(larvae)                     
+                        larva = random.choice(larvae)
                         if larva.x > 84:
-                            larva.x = larva.x - (larva.x - 85)
+                            larva.x = larva.x - (larva.x - 83)
                         if larva.y > 84:
-                            larva.y = larva.x - (larva.y - 85)
+                            larva.y = larva.x - (larva.y - 83)
                         self.select = [larva.x, larva.y]
+
                         return actions.FUNCTIONS.select_point("select_all_type", (larva.x, larva.y))
 
             elif smart_action == ACTION_ATTACK:
@@ -336,6 +338,7 @@ class ZergAgentAttack(base_agent.BaseAgent):
                         self.build_here = [x, y]
                         return actions.FUNCTIONS.Build_SpawningPool_screen('now', self.build_here)
 
+
             elif smart_action == ACTION_BUILD_ROACH_WARREN:
                 if roach_warren_count < 1 and self.can_do(obs, actions.FUNCTIONS.Build_RoachWarren_screen.id):
                     if self.get_units_by_type(obs, units.Zerg.Hatchery):
@@ -343,6 +346,7 @@ class ZergAgentAttack(base_agent.BaseAgent):
                         y = random.randint(0, 83)
                         self.build_here = [x, y]
                         return actions.FUNCTIONS.Build_RoachWarren_screen('now', self.build_here)
+
 
             elif smart_action == ACTION_BUILD_EXTRACTOR:
                 if self.can_do(obs, actions.FUNCTIONS.Build_Extractor_screen.id):
@@ -419,6 +423,7 @@ class ZergAgentAttack(base_agent.BaseAgent):
             if smart_action == ACTION_BUILD_HATCHERY:
                 if self.can_do(obs, actions.FUNCTIONS.Build_Hatchery_screen.id):
                     return actions.FUNCTIONS.Build_Hatchery_screen('now', (42, 42))
+
 
         return actions.FUNCTIONS.no_op()
 
