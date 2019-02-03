@@ -154,6 +154,7 @@ class ZergAgentAttack(base_agent.BaseAgent):
         supply_limit = obs.observation.player.food_cap
         supply_used = obs.observation.player.food_used
         worker_supply = obs.observation.player.food_workers
+        visible_workers = self.get_units_by_type(obs, units.Zerg.Drone)
         army_limit = obs.observation['player'][5]
         roach_warren = self.get_units_by_type(obs, units.Zerg.RoachWarren)
         roach_warren_count = len(roach_warren)
@@ -210,12 +211,17 @@ class ZergAgentAttack(base_agent.BaseAgent):
 
             if free_supply > 8:  # got enough supply dont bother with overlord
                 excluded_actions.append(3)
-            if worker_supply ==0: # no point building with no drones
-                for action in smart_actions:
-                    if 'build' in action or 'drone' in action:
-                        excluded_actions.append(smart_actions.index(action))
+            if len(visible_workers) == 0 and not self.unit_type_is_selected(obs, units.Zerg.Drone):  # no point building with no drones
 
-            if extractor_count >= (htc_count * 2): # if all extractors are made no point building new ones
+                excluded_actions.append(1)
+                excluded_actions.append(2)
+                excluded_actions.append(7)
+                excluded_actions.append(8)
+                excluded_actions.append(9)
+                for action in smart_actions:  # cant see any drones or i dont have any
+                    if ACTION_BUILD_HATCHERY in action:
+                        excluded_actions.append(smart_actions.index(action))
+            if extractor_count >= (htc_count * 2):  # if all extractors are made no point building new ones
                 excluded_actions.append(9)
             if roach_warren_count == 1:
                 excluded_actions.append(8)  # we have a Roach warren, dont build another
@@ -265,12 +271,14 @@ class ZergAgentAttack(base_agent.BaseAgent):
                     or smart_action == ACTION_DRONE_HARVEST or smart_action == ACTION_DRONE_HGAS:
                 if self.should_select:
                     drones = self.get_units_by_type(obs, units.Zerg.Drone)
-                    if len(drones )> 0:
+                    if len(drones)> 0:
                         drone = random.choice(drones)
-                        drone_x = drone.x
-                        drone_y = drone.y
-                        self.select = [drone_x, drone_y]
-                        return actions.FUNCTIONS.select_point("select", self.select)
+                        self.select = [drone.x, drone.y]
+                        if drone.x > 84:
+                            drone.x = drone.x - (drone.x - 85)
+                        if drone.y > 84:
+                            drone.y = drone.x - (drone.y - 85)
+                        return actions.FUNCTIONS.select_point("select", (drone.x, drone.y))
 
             elif smart_action == ACTION_TRAIN_OVERLORD or smart_action == ACTION_TRAIN_ZERGLING or \
                     smart_action == ACTION_TRAIN_DRONE or smart_action == ACTION_TRAIN_ROACH:
@@ -279,15 +287,21 @@ class ZergAgentAttack(base_agent.BaseAgent):
                     larvae = self.get_units_by_type(obs, units.Zerg.Larva)
                     if len(larvae) > 0:
                         larva = random.choice(larvae)
+                        if larva.x > 84:
+                            larva.x = larva.x - (larva.x - 85)
+                        if larva.y > 84:
+                            larva.y = larva.x - (larva.y - 85)
                         self.select = [larva.x, larva.y]
-                    return actions.FUNCTIONS.select_point("select_all_type", self.select)
+                        return actions.FUNCTIONS.select_point("select_all_type", (larva.x, larva.y))
 
             elif smart_action == ACTION_ATTACK:
                 do_it = True
+                self.move_number = 0
                 if self.unit_type_is_selected(obs, units.Zerg.Drone):
                     do_it = False
                 if do_it and self.can_do(obs, actions.FUNCTIONS.Attack_minimap.id):
                     target_location = self.transformLocation(int(x), int(y))
+
                     return actions.FUNCTIONS.Attack_minimap('now', target_location)
 
         elif self.move_number == 2:
@@ -300,10 +314,19 @@ class ZergAgentAttack(base_agent.BaseAgent):
                     self.build_here = [int(x), int(y)]
                     return actions.FUNCTIONS.move_camera(self.build_here)
 
-            elif smart_action == ACTION_BUILD_SPAWNINGPOOL or smart_action == ACTION_BUILD_ROACH_WARREN:
-                if self.get_units_by_type(obs, units.Zerg.Hatchery):
+            elif smart_action == ACTION_BUILD_SPAWNINGPOOL:
+                if spawning_pools_count < 1 and self.can_do(obs, actions.FUNCTIONS.Build_SpawningPool_screen.id):
+                    if self.get_units_by_type(obs, units.Zerg.Hatchery):
+                            self.build_here = self.transformDistance(self.htc_x, 15, self.htc_y, -9)
+                            return actions.FUNCTIONS.Build_SpawningPool_screen('now', self.build_here)
+
+
+            elif smart_action == ACTION_BUILD_ROACH_WARREN:
+                if roach_warren_count < 1 and self.can_do(obs, actions.FUNCTIONS.Build_RoachWarren_screen.id):
+                    if self.get_units_by_type(obs, units.Zerg.Hatchery):
                         self.build_here = self.transformDistance(self.htc_x, 15, self.htc_y, -9)
-                        return actions.FUNCTIONS.move_camera(self.build_here)
+                        return actions.FUNCTIONS.Build_RoachWarren_screen('now', self.build_here)
+
 
             elif smart_action == ACTION_BUILD_EXTRACTOR:
                 if self.can_do(obs, actions.FUNCTIONS.Build_Extractor_screen.id):
@@ -329,7 +352,7 @@ class ZergAgentAttack(base_agent.BaseAgent):
                                             # no? YAY build it!.
                                     if not self.geyser_taken:
                                         self.build_here = [gey_x, gey_y]
-                                        return actions.FUNCTIONS.move_camera(self.build_here)
+                                        return actions.FUNCTIONS.Build_Extractor_screen("now", self.build_here)
 
             elif smart_action == ACTION_DRONE_HARVEST:
                 if self.can_do(obs, actions.FUNCTIONS.Harvest_Gather_screen.id):
@@ -341,7 +364,7 @@ class ZergAgentAttack(base_agent.BaseAgent):
                             if self.calculateDistance(mineral.x, mineral.y, hatch.x, hatch.y) <= 35:
                                 self.should_harvest = True
                                 self.harvest_here = [mineral.x, mineral.y]
-                                return actions.FUNCTIONS.move_camera(self.harvest_here)
+                                return actions.FUNCTIONS.Harvest_Gather_screen("now", self.harvest_here)
 
             elif smart_action == ACTION_DRONE_HGAS:
                 if self.can_do(obs, actions.FUNCTIONS.Harvest_Gather_screen.id):
@@ -353,7 +376,7 @@ class ZergAgentAttack(base_agent.BaseAgent):
                             if self.calculateDistance(extractor.x, extractor.y, hatch.x, hatch.y) <= 35:
                                 self.should_harvest = True
                                 self.harvest_here = [extractor.x, extractor.y]
-                                return actions.FUNCTIONS.move_camera(self.harvest_here)
+                                return actions.FUNCTIONS.Harvest_Gather_screen("now", self.harvest_here)
 
             elif smart_action == ACTION_TRAIN_OVERLORD:
                 if self.can_do(obs, actions.FUNCTIONS.Train_Overlord_quick.id):
@@ -376,28 +399,11 @@ class ZergAgentAttack(base_agent.BaseAgent):
 
             smart_action, x, y = self.splitAction(self.previous_action)
 
-            if smart_action == ACTION_BUILD_ROACH_WARREN:
-                if roach_warren_count < 1 and self.can_do(obs, actions.FUNCTIONS.Build_RoachWarren_screen.id):
-                        return actions.FUNCTIONS.Build_RoachWarren_screen("now", (42, 42))
                         # build right in the middle of screen
-            elif smart_action == ACTION_BUILD_HATCHERY:
+            if smart_action == ACTION_BUILD_HATCHERY:
                 if self.can_do(obs, actions.FUNCTIONS.Build_Hatchery_screen.id):
-                    return actions.FUNCTIONS.Build_Hatchery_screen('now', (42,42))
-                    # build right in the middle of screen
-            elif smart_action == ACTION_BUILD_SPAWNINGPOOL or smart_action == ACTION_BUILD_ROACH_WARREN:
-                if spawning_pools_count < 1 and self.can_do(obs, actions.FUNCTIONS.Build_SpawningPool_screen.id):
-                        return actions.FUNCTIONS.Build_SpawningPool_screen('now', (42, 42))
-                        # build right in the middle of screen
-            elif smart_action == ACTION_BUILD_EXTRACTOR:
-                if self.can_do(obs, actions.FUNCTIONS.Build_Extractor_screen.id):
-                    if self.geyser_taken:
-                        return actions.FUNCTIONS.Build_Extractor_screen("now", (42, 42))
-                        # build right in the middle of screen
-            elif smart_action == ACTION_DRONE_HARVEST or smart_action == ACTION_DRONE_HGAS:
-                if self.can_do(obs, actions.FUNCTIONS.Harvest_Gather_screen.id):
-                    if self.should_harvest:
-                        return actions.FUNCTIONS.Harvest_Gather_screen("now", (42, 42))
-                        # build right in the middle of screen
+                    return actions.FUNCTIONS.Build_Hatchery_screen('now', (42, 42))
+
 
         return actions.FUNCTIONS.no_op()
 
@@ -474,10 +480,13 @@ def main(unused_argv):
                 timesteps = env.reset()
                 agent.reset()
                 while True:
-                    step_actions = [agent.step(timesteps[0])]
-                    if timesteps[0].last():
-                        break
-                    timesteps = env.step(step_actions)
+                    try:
+                        step_actions = [agent.step(timesteps[0])]
+                        if timesteps[0].last():
+                            break
+                        timesteps = env.step(step_actions)
+                    except:
+                        pass
     except KeyboardInterrupt:
         pass
 
