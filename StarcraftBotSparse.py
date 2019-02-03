@@ -144,7 +144,6 @@ class ZergAgentAttack(base_agent.BaseAgent):
             self.htc_y = self.htc_y[0].y
             self.htc_x = self.get_units_by_type(obs, units.Zerg.Hatchery)
             self.htc_x = self.htc_x[0].x
-
         hatcheries = self.get_units_by_type(obs, units.Zerg.Hatchery)
         htc_count = len(hatcheries)
         overlords = self.get_units_by_type(obs, units.Zerg.Overlord)
@@ -162,9 +161,10 @@ class ZergAgentAttack(base_agent.BaseAgent):
         extractor_count = len(extractors)
         free_supply = obs.observation.player.food_cap - obs.observation.player.food_used
         army_supply = obs.observation.player.food_army
+
         if self.move_number == 0:
             self.move_number += 1
-            current_state = np.zeros(388)
+            current_state = np.zeros(132)
             current_state[0] = overlords_count
             current_state[1] = spawning_pools_count
             current_state[2] = supply_limit
@@ -202,35 +202,49 @@ class ZergAgentAttack(base_agent.BaseAgent):
                 self.qlearn.learn(str(self.previous_state), self.previous_action, 0, str(current_state))
 
             excluded_actions = []
-
+            # excludes actions if we cant do them, checks to see if a action hasnt already been included
             if spawning_pools_count == 0:  # cant make Zerglings so dont try
-                excluded_actions.append(5)
-
+                if 5 not in excluded_actions:
+                    excluded_actions.append(5)
+                if 6 not in excluded_actions:
+                    excluded_actions.append(6)
+                if 8 not in excluded_actions:
+                    excluded_actions.append(8)
             if spawning_pools_count == 1:  # we have a Spawning pool, dont build another
-                excluded_actions.append(7)
-
+                if 7 not in excluded_actions:
+                    excluded_actions.append(7)
             if free_supply > 8:  # got enough supply dont bother with overlord
                 excluded_actions.append(3)
             if len(visible_workers) == 0 and not self.unit_type_is_selected(obs, units.Zerg.Drone):  # no point building with no drones
-
-                excluded_actions.append(1)
-                excluded_actions.append(2)
-                excluded_actions.append(7)
-                excluded_actions.append(8)
-                excluded_actions.append(9)
+                if 1 not in excluded_actions:
+                    excluded_actions.append(1)
+                if 2 not in excluded_actions:
+                    excluded_actions.append(2)
+                if 7 not in excluded_actions:
+                    excluded_actions.append(7)
+                if 8 not in excluded_actions:
+                    excluded_actions.append(8)
+                if 9 not in excluded_actions:
+                    excluded_actions.append(9)
                 for action in smart_actions:  # cant see any drones or i dont have any
                     if ACTION_BUILD_HATCHERY in action:
-                        excluded_actions.append(smart_actions.index(action))
+                        if smart_actions.index(action) not in excluded_actions:
+                            excluded_actions.append(smart_actions.index(action))
             if extractor_count >= (htc_count * 2):  # if all extractors are made no point building new ones
-                excluded_actions.append(9)
+                if 9 not in excluded_actions:
+                    excluded_actions.append(9)
             if roach_warren_count == 1:
-                excluded_actions.append(8)  # we have a Roach warren, dont build another
+                if 8 not in excluded_actions:
+                    excluded_actions.append(8)  # we have a Roach warren, dont build another
             if roach_warren_count == 0:  # cant make Roaches so dont try
-                excluded_actions.append(6)
+                if 6 not in excluded_actions:
+                    excluded_actions.append(6)
+
             if army_supply == 0:  # no supply so no attacking
                 for action in smart_actions:
                     if ACTION_ATTACK in action:
-                        excluded_actions.append(smart_actions.index(action))
+                        if smart_actions.index(action) not in excluded_actions:
+                            excluded_actions.append(smart_actions.index(action))
 
             rl_action = self.qlearn.choose_action(str(current_state), excluded_actions)
 
@@ -286,7 +300,7 @@ class ZergAgentAttack(base_agent.BaseAgent):
                 if self.should_select:
                     larvae = self.get_units_by_type(obs, units.Zerg.Larva)
                     if len(larvae) > 0:
-                        larva = random.choice(larvae)
+                        larva = random.choice(larvae)                     
                         if larva.x > 84:
                             larva.x = larva.x - (larva.x - 85)
                         if larva.y > 84:
@@ -317,16 +331,18 @@ class ZergAgentAttack(base_agent.BaseAgent):
             elif smart_action == ACTION_BUILD_SPAWNINGPOOL:
                 if spawning_pools_count < 1 and self.can_do(obs, actions.FUNCTIONS.Build_SpawningPool_screen.id):
                     if self.get_units_by_type(obs, units.Zerg.Hatchery):
-                            self.build_here = self.transformDistance(self.htc_x, 15, self.htc_y, -9)
-                            return actions.FUNCTIONS.Build_SpawningPool_screen('now', self.build_here)
-
+                        x = random.randint(0, 83)
+                        y = random.randint(0, 83)
+                        self.build_here = [x, y]
+                        return actions.FUNCTIONS.Build_SpawningPool_screen('now', self.build_here)
 
             elif smart_action == ACTION_BUILD_ROACH_WARREN:
                 if roach_warren_count < 1 and self.can_do(obs, actions.FUNCTIONS.Build_RoachWarren_screen.id):
                     if self.get_units_by_type(obs, units.Zerg.Hatchery):
-                        self.build_here = self.transformDistance(self.htc_x, 15, self.htc_y, -9)
+                        x = random.randint(0, 83)
+                        y = random.randint(0, 83)
+                        self.build_here = [x, y]
                         return actions.FUNCTIONS.Build_RoachWarren_screen('now', self.build_here)
-
 
             elif smart_action == ACTION_BUILD_EXTRACTOR:
                 if self.can_do(obs, actions.FUNCTIONS.Build_Extractor_screen.id):
@@ -404,7 +420,6 @@ class ZergAgentAttack(base_agent.BaseAgent):
                 if self.can_do(obs, actions.FUNCTIONS.Build_Hatchery_screen.id):
                     return actions.FUNCTIONS.Build_Hatchery_screen('now', (42, 42))
 
-
         return actions.FUNCTIONS.no_op()
 
 
@@ -421,7 +436,6 @@ class QLearningTable:
         self.check_state_exist(observation)
         self.disallowed_actions[observation] = excluded_actions
         state_action = self.q_table.ix[observation, :]
-
         for excluded_action in excluded_actions:
             del state_action[excluded_action]
 
@@ -474,19 +488,16 @@ def main(unused_argv):
                                     feature_dimensions=features.Dimensions(screen=84, minimap=64),
                                     use_feature_units=True),
                                 step_mul=16,
-                                game_steps_per_episode=0, visualize=False)as env:
+                                game_steps_per_episode=0, visualize=True)as env:
                 agent.setup(env.observation_spec(), env.action_spec())
 
                 timesteps = env.reset()
                 agent.reset()
                 while True:
-                    try:
-                        step_actions = [agent.step(timesteps[0])]
-                        if timesteps[0].last():
-                            break
-                        timesteps = env.step(step_actions)
-                    except:
-                        pass
+                    step_actions = [agent.step(timesteps[0])]
+                    if timesteps[0].last():
+                        break
+                    timesteps = env.step(step_actions)
     except KeyboardInterrupt:
         pass
 
