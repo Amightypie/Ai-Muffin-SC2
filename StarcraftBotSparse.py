@@ -291,7 +291,7 @@ class ZergAgentAttack(base_agent.BaseAgent):
                         if drone.x > 84:
                             drone.x = drone.x - (drone.x - 83)
                         if drone.y > 84:
-                            drone.y = drone.x - (drone.y - 83)
+                            drone.y = drone.y - (drone.y - 83)
 
                         return actions.FUNCTIONS.select_point("select", (drone.x, drone.y))
 
@@ -305,7 +305,7 @@ class ZergAgentAttack(base_agent.BaseAgent):
                         if larva.x > 84:
                             larva.x = larva.x - (larva.x - 83)
                         if larva.y > 84:
-                            larva.y = larva.x - (larva.y - 83)
+                            larva.y = larva.y - (larva.y - 83)
                         self.select = [larva.x, larva.y]
 
                         return actions.FUNCTIONS.select_point("select_all_type", (larva.x, larva.y))
