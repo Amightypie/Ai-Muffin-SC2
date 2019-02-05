@@ -1,4 +1,4 @@
-# Ai-Muffin-SC2
+# Ai-Muffin-SC2 (DEAD UNTIL FURTHER EFFORT) 
 First- thanks to Steven Brown and his tutorial set for helping me get a decent start on this project (although updating them would be great :P) https://chatbotslife.com/building-a-basic-pysc2-agent-b109cde1477c
 
 My attempts at making a bot that is able to play Starcraft 2 and actually win through the use of Machine Learning
